@@ -22,6 +22,71 @@ var bot = bb({
 
 })
 
+//Processor Code///
+
+// //keyboard function
+
+// let defaultKeyboard = null
+
+// function startingKeyboard(menu) {
+//     defaultKeyboard = menu
+//     console.log('This is the keyboard function')
+//     bot.keyboard(defaultKeyboard)
+
+// }
+
+// // get stored intent from processor, 'intent' command(retrieve existing user stored intent)
+
+
+// bot.command('intent').invoke(function (ctx) {
+//     return axios.get('http://0da912ca.ngrok.io/processor/v1/actionRequest')
+//         .then((response) => {
+
+
+//             startingKeyboard(response.data)
+//             console.log('i am here')
+//             console.log(response.data)
+
+//         })
+// })
+
+///End////
+
+// bot.command('start')
+//     .invoke(function (ctx) {
+        
+//         ref.on("value", function(snapshot) {
+//             console.log("In On value");
+//      let userData = snapshot.val().userDetails;
+     
+//      _.forOwn(userData, function(value, key) { 
+        
+//         //console.log(value.Telegram_ID);
+//             let exists = false;
+//             //console.log(value.length)
+//             if(value.Telegram_ID == ctx.meta.user.id)
+//             {
+//                 exists = true;
+//                 console.log('user  exist')
+//                   ctx.go('Bye');
+                
+
+
+//             }else{ 
+//                 console.log('user dont exist')
+//                   ctx.go('hi');
+//             }
+
+            
+//      } );
+     
+//         }, function (errorObject) {
+//             console.log("The read failed: " + errorObject.code);
+     
+//         });
+//     })
+
+
 //The greetings
 bot.texts({
     hello: {
@@ -30,6 +95,15 @@ bot.texts({
       }
     }
   });
+
+
+  bot.texts({
+      hello: {
+          world: {
+              friend: 'hello , <%=name%>!'
+          }
+      }
+  })
  
   bot.command('hey').invoke(function (ctx) {
     ctx.data.name = ctx.meta.user.first_name;
@@ -40,16 +114,12 @@ bot.texts({
 
 //Registration
 bot.command('hello').invoke(function (ctx) {
-    return ctx.sendMessage('Hi welcome , may you please enter your number?' );
+    return ctx.sendMessage('May you please enter your number?' );
 }).answer(function (ctx) {
 
     // Sets user answer to session.number
     ctx.session.number = ctx.answer;
 
-    // if()
-    // {
-
-    // }
 
     //display user telegram ID
     console.log(ctx.meta.user.id)
@@ -60,25 +130,83 @@ bot.command('hello').invoke(function (ctx) {
     return ctx.go('hi')
 });
 
+//Confirmation
+bot.command('validate')
+.invoke(function (ctx) {
+  return ctx.sendMessage('Hello')
+})
+.keyboard([
+  [{'yes': {go:'hey'}}],
+  [{'No': {go: 'Bye'}}]
+  
+])
+
+//bye commmand (closing a sessiom)
+
+bot.command('bye').invoke(function (ctx) {
+    return ctx.sendMessage('Bye ' + ctx.meta.user.first_name);
+  });
+ 
+ //Yes command (Existing user keyboard)
+ bot.command('yes')
+ .invoke(function (ctx) {
+    return ctx.sendMessage('Would you like to do something else?')
+ })
+ .keyboard ([
+    [{'saved intent':{value:'ctx.session.number'}}],
+    [{'else': {go: 'hi'}}]
+ ])
+ 
+.answer(function (ctx) {
+  ctx.data.answer = ctx.answer;
+  return ctx.sendMessage('Your answer is <%=answer%>');
+});
+bot.command('bye').invoke(function (ctx) {
+    return ctx.sendMessage('Bye ' + ctx.meta.user.first_name);
+  });
+
 //store users number and Telegram ID in FIRESTORE
 
 function addUserdetails(userId, name, firstName, lastName) {
 
 
     // Add a new user
-    var itemsRef = ref.child("user details");
+    var itemsRef = ref.child("user_details");
     var newItemRef = itemsRef.push();
     newItemRef.set({
         "msidn": userId,
-        "Telegram ID": name,
-        "First name": firstName,
-        "Last name": lastName
+        "Telegram_ID": name,
+        "First_name": firstName,
+        "Last_name": lastName
     });
 
     var itemId = newItemRef.key;
     console.log("A new TODO item with ID " + itemId + " is created.");
     return itemId;
 }
+
+bot.command('check')
+.invoke(function(ctx){
+    // Attach an asynchronous callback to read the data at our posts reference
+    ref.on("value", function(snapshot) {
+
+        let data = snapshot.val().user_details
+
+        console.log(data);
+
+    }, function (errorObject) {
+        console.log("The read failed: " + errorObject.code);
+
+        //Get single value inside 
+        // _.forEach(data, function(val) {
+        //     console.log(val.Telegram_ID); 
+        //   });
+
+    });
+    return ctx.sendMessage('i can read')
+})
+
+
 
 //memory session (storing user Intent)
 
@@ -95,14 +223,20 @@ bot.command('hi')
         console.log(ctx.meta.user.id);
         addUserIntent(ctx.session.number, ctx.session.memory);
         return ctx.sendMessage('Thanks, your intent has been captured');
+
+        
     })
+
+        .answer(function(ctx){
+            return ctx.go('validate')
+        });
 
     // store users number and intent
 
 function addUserIntent(userId, userIntent) {
 
     
-    var itemsRef = ref.child("users intent ");
+    var itemsRef = ref.child("users_intent ");
     var newItemRef = itemsRef.push();
     newItemRef.set({
         "msidn": userId,
@@ -110,19 +244,17 @@ function addUserIntent(userId, userIntent) {
         "intent Created Time": new Date().toString()
     });
 
-    app.get('/add', function (req, res) {
-        let userData = ctx.data.memory;
-        
-        axios.post('http://9147a1c3.ngrok.io', userData)
-         .then(function (response) {
-           console.log(response);
-           
-         })
-         .catch(function (error) {
-          
-         });
+         //posting data to the processor endpoint
+    // axios.post('http://0da912ca.ngrok.io/processor/v1/actionRequest', userData)
+    // .then(function (response) {
+    //     console.log(response.data);
+
+    // })
+    // .catch(function (error) {
+
+    // });
       
-      })
+      
 
     var itemId = newItemRef.key;
     console.log("userID and intent " + itemId + " is successfully created.");
