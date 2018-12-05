@@ -1,5 +1,7 @@
 var admin = require('firebase-admin')
 var express = require('express');
+var axios = require('axios');
+
 
 var serviceAccount = require("./key.json");
 
@@ -22,9 +24,11 @@ var bot = bb({
 
 })
 
+
+
 //Processor Code///
 
-// //keyboard function
+//keyboard function
 
 // let defaultKeyboard = null
 
@@ -50,7 +54,7 @@ var bot = bb({
 //         })
 // })
 
-///End////
+//End////
 
 // bot.command('start')
 //     .invoke(function (ctx) {
@@ -113,30 +117,68 @@ bot.texts({
 
 
 //Registration
-bot.command('hello').invoke(function (ctx) {
-    return ctx.sendMessage('May you please enter your number?' );
+bot.command('yello').invoke(function (ctx) {
+
+    var option = {
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "one_time_keyboard": true,
+            "keyboard": [[{
+                text: "My phone number",
+                request_contact: true
+            }], ["Cancel"]]
+        }
+    };
+    bot.api.sendMessage(ctx.meta.chat.id, "Yello  " +ctx.meta.user.first_name + "  may you please register by entering your number", option)
+    
+   bot.sendChatAction = function (chatId, action) {
+        var query = {
+          chat_id: chatId,
+          action: 'typing..'
+        };
+        console.log(action);
+        return this._request('sendChatAction',option.action , {qs: query});
+      };
+    
+    
 }).answer(function (ctx) {
 
-    // Sets user answer to session.number
-    ctx.session.number = ctx.answer;
-
-
     //display user telegram ID
-    console.log(ctx.meta.user.id)
-   //console.log(ctx.session.number);
-   
-    addUserdetails(ctx.session.number, ctx.meta.user.id, ctx.meta.user.first_name, ctx.meta.user.last_name); 
-    console.log(ctx.session.number);
+    console.log(ctx.meta.user.id)    
+    //addUserdetails(ctx.message.contact.phone_number, ctx.meta.user.id, ctx.meta.user.first_name, ctx.meta.user.last_name);
+    console.log(ctx.message.contact.phone_number);
     return ctx.go('hi')
 });
 
+//memory session (storing user Intent)
+
+bot.command('hi')
+    .invoke(function (ctx) {
+        return ctx.sendMessage('Hey! ' + ctx.meta.user.first_name +', what would you like to do today?');
+    })
+    .answer(function (ctx) {
+        ctx.session.memory = ctx.session.memory || '';
+        ctx.session.memory += ctx.answer + ',';
+        ctx.data.memory = ctx.session.memory;
+
+        console.log(ctx.data.memory);
+        console.log(ctx.meta);
+       // addUserIntent(ctx.session.number, ctx.session.memory);
+        return ctx.sendMessage('Thanks '+ ctx.meta.user.first_name+' , your selection has been captured');
+        
+    })
+
+        .answer(function(ctx){
+            return ctx.go('confirmation')
+        });
+
 //Confirmation
-bot.command('validate')
+bot.command('confirmation')
 .invoke(function (ctx) {
-  return ctx.sendMessage('Hello')
+  return ctx.sendMessage('Would you like to do something else? '+ ctx.meta.user.first_name)
 })
 .keyboard([
-  [{'yes': {go:'hey'}}],
+  [{'yes': {go:'yes'}}],
   [{'No': {go: 'Bye'}}]
   
 ])
@@ -150,11 +192,12 @@ bot.command('bye').invoke(function (ctx) {
  //Yes command (Existing user keyboard)
  bot.command('yes')
  .invoke(function (ctx) {
-    return ctx.sendMessage('Would you like to do something else?')
+    return ctx.sendMessage('Would you like to do something else?' + ctx.meta.user.first_name)
  })
  .keyboard ([
-    [{'saved intent':{value:'ctx.session.number'}}],
-    [{'else': {go: 'hi'}}]
+    [{'Saved intent':{go:'hi'}}],
+    [{'New Intent': {go: 'hi'}}],
+    [{'Chitchat': {go: 'promo'}}]
  ])
  
 .answer(function (ctx) {
@@ -165,25 +208,47 @@ bot.command('bye').invoke(function (ctx) {
     return ctx.sendMessage('Bye ' + ctx.meta.user.first_name);
   });
 
+  //Chit-chat 
+  bot.command('chitchat')
+  .invoke(function(ctx){
+
+      
+      return ctx.sendMessage('Ayoba ' + ctx.meta.user.first_name)
+  })
+
+  bot.command('promo')
+   .invoke(function(ctx) {
+       return axios.get('http://7a0873c4.ngrok.io/processor/v1/promotions')
+       .then((response) => {
+
+
+           //console.log('i am here')
+           console.log(response.data)
+           ctx.sendMessage(response.data.advert)
+           return ctx.go('chitchat');
+       })
+
+   })
+
 //store users number and Telegram ID in FIRESTORE
 
-function addUserdetails(userId, name, firstName, lastName) {
+// function addUserdetails(userId, name, firstName, lastName) {
 
 
-    // Add a new user
-    var itemsRef = ref.child("user_details");
-    var newItemRef = itemsRef.push();
-    newItemRef.set({
-        "msidn": userId,
-        "Telegram_ID": name,
-        "First_name": firstName,
-        "Last_name": lastName
-    });
+//     // Add a new user
+//     var itemsRef = ref.child("userDetails");
+//     var newItemRef = itemsRef.push();
+//     newItemRef.set({
+//         "msidn": userId,
+//         "Telegram_ID": name,
+//         "First_name": firstName,
+//         "Last_name": lastName
+//     });
 
-    var itemId = newItemRef.key;
-    console.log("A new TODO item with ID " + itemId + " is created.");
-    return itemId;
-}
+//     var itemId = newItemRef.key;
+//     console.log("A new TODO item with ID " + itemId + " is created.");
+//     return itemId;
+// }
 
 bot.command('check')
 .invoke(function(ctx){
@@ -207,36 +272,29 @@ bot.command('check')
 })
 
 
-
-//memory session (storing user Intent)
-
-bot.command('hi')
-    .invoke(function (ctx) {
-        return ctx.sendMessage('Hey! teach me your intent ?');
-    })
-    .answer(function (ctx) {
-        ctx.session.memory = ctx.session.memory || '';
-        ctx.session.memory += ctx.answer + ',';
-        ctx.data.memory = ctx.session.memory;
-
-        console.log(ctx.data.memory);
-        console.log(ctx.meta.user.id);
-        addUserIntent(ctx.session.number, ctx.session.memory);
-        return ctx.sendMessage('Thanks, your intent has been captured');
-
-        
-    })
-
-        .answer(function(ctx){
-            return ctx.go('validate')
-        });
-
     // store users number and intent
+bot.command('hit')
+.invoke(function(ctx){
+    let userData = {
 
+        userData: ctx.message.contact.phone_number
+    }
+    //Send keyboard selection action to processor
+    axios.post('http://0da912ca.ngrok.io/processor/v1/userIntents', userData)
+        .then(function (response) {
+            console.log(response.data);
+ 
+        })
+        .catch(function (error) {
+ 
+        });
+})
 function addUserIntent(userId, userIntent) {
 
     
-    var itemsRef = ref.child("users_intent ");
+
+
+    var itemsRef = ref.child("userIntents");
     var newItemRef = itemsRef.push();
     newItemRef.set({
         "msidn": userId,
@@ -244,19 +302,24 @@ function addUserIntent(userId, userIntent) {
         "intent Created Time": new Date().toString()
     });
 
-         //posting data to the processor endpoint
-    // axios.post('http://0da912ca.ngrok.io/processor/v1/actionRequest', userData)
-    // .then(function (response) {
-    //     console.log(response.data);
-
-    // })
-    // .catch(function (error) {
-
-    // });
-      
-      
-
     var itemId = newItemRef.key;
     console.log("userID and intent " + itemId + " is successfully created.");
     return itemId;
 }
+
+// posting data to the processor endpoint
+bot.command('Kat')
+.invoke(function(ctx){
+     
+    console.log('Sent to Kat')
+    axios.get('http://516d0ec3.ngrok.io/processor/v1/userDetails/ '+ ctx.meta.user.id)
+    .then(function (response) {
+    console.log(response.data);
+
+})
+.catch(function (error) {
+}); 
+    return ctx.sendMessage('hi')
+})
+
+//Get menu from processor 
