@@ -1,19 +1,59 @@
-var admin = require('firebase-admin')
-var express = require('express');
+
+
 var axios = require('axios');
 
+const admin = require('firebase-admin') ;
+const firebaseHelper = require('firebase-functions-helper');
 
-var serviceAccount = require("./key.json");
+
+//admin.initializeApp(functions.config().firebase)
 
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: "//telegramv2-c6156.firebaseio.com/"
+   credential: admin.credential.applicationDefault()
 });
 
-//get a database reference to the database
+const db = admin.firestore()
 
-var db = admin.database();
-var ref = db.ref("/");
+const settings = { timestampsInSnapshots: true }
+db.settings(settings)
+
+
+
+//creating a collection
+const userDetailsCollection = 'userDetails';
+const userintentsCollection = 'userintents';
+
+//Add userDetails table
+
+//  function getUserDetails(phone_number,user_id,first_name,last_name){
+//     let userInfor = {
+
+//         msidn : phone_number,
+//         Telegram_ID : user_id,
+//         first_name : first_name,
+//         last_name : last_name
+
+//     }
+
+//     firestoreHelper.firestore.createNewDocument(db, userDetailsCollection, userInfor);
+    
+//  }
+    
+//Fucntion for user intent
+ function getUserIntent(userIntent,telegram_id,first_name,last_name){
+   
+    let userInfor = {
+
+        intent : userIntent,
+        msidn : telegram_id,
+        first_name : first_name,
+        last_name : last_name
+
+    }
+
+    firebaseHelper.firestore.createNewDocument(db, userDetailsCollection, userInfor);
+    
+ }
 
 
 var bb = require('bot-brother')
@@ -23,73 +63,6 @@ var bot = bb({
     polling: { interval: 10, timeout: false }
 
 })
-
-
-
-//Processor Code///
-
-//keyboard function
-
-// let defaultKeyboard = null
-
-// function startingKeyboard(menu) {
-//     defaultKeyboard = menu
-//     console.log('This is the keyboard function')
-//     bot.keyboard(defaultKeyboard)
-
-// }
-
-// // get stored intent from processor, 'intent' command(retrieve existing user stored intent)
-
-
-// bot.command('intent').invoke(function (ctx) {
-//     return axios.get('http://0da912ca.ngrok.io/processor/v1/actionRequest')
-//         .then((response) => {
-
-
-//             startingKeyboard(response.data)
-//             console.log('i am here')
-//             console.log(response.data)
-
-//         })
-// })
-
-//End////
-
-// bot.command('start')
-//     .invoke(function (ctx) {
-        
-//         ref.on("value", function(snapshot) {
-//             console.log("In On value");
-//      let userData = snapshot.val().userDetails;
-     
-//      _.forOwn(userData, function(value, key) { 
-        
-//         //console.log(value.Telegram_ID);
-//             let exists = false;
-//             //console.log(value.length)
-//             if(value.Telegram_ID == ctx.meta.user.id)
-//             {
-//                 exists = true;
-//                 console.log('user  exist')
-//                   ctx.go('Bye');
-                
-
-
-//             }else{ 
-//                 console.log('user dont exist')
-//                   ctx.go('hi');
-//             }
-
-            
-//      } );
-     
-//         }, function (errorObject) {
-//             console.log("The read failed: " + errorObject.code);
-     
-//         });
-//     })
-
 
 //The greetings
 bot.texts({
@@ -127,25 +100,40 @@ bot.command('yello').invoke(function (ctx) {
                 text: "My phone number",
                 request_contact: true
             }], ["Cancel"]]
+
+            
         }
+
+        
     };
-    bot.api.sendMessage(ctx.meta.chat.id, "Yello  " +ctx.meta.user.first_name + "  may you please register by entering your number", option)
+    //Calling a user deatails function
+    console.log(ctx.meta.user.phone_number);
+    //getUserDetails(ctx.meta.user.phone_number, ctx.meta.user.id,ctx.meta.user.first_name,ctx.meta.user.last_name);
+
+   
+    //bot.api.sendMessage(ctx.meta.chat.id, "Yello  " +ctx.meta.user.first_name + "  may you please register by entering your number", option)
+    return ctx.sendMessage("Yello  " +ctx.meta.user.first_name + "  may you please register by entering your number", option)
+
     
-   bot.sendChatAction = function (chatId, action) {
-        var query = {
-          chat_id: chatId,
-          action: 'typing..'
-        };
-        console.log(action);
-        return this._request('sendChatAction',option.action , {qs: query});
-      };
+    
+    
+    
+//  bot.command('type')
+//    .invoke(function(ctx) {
+//     var USERID = ctx.meta.user.id
+//     var action = "typing";
+//     bot.api.sendChatAction(USERID, action).then(function (resp) {
+
+//      return ctx.go('intent')
+//     })
+
+//   });
     
     
 }).answer(function (ctx) {
 
     //display user telegram ID
     console.log(ctx.meta.user.id)    
-    //addUserdetails(ctx.message.contact.phone_number, ctx.meta.user.id, ctx.meta.user.first_name, ctx.meta.user.last_name);
     console.log(ctx.message.contact.phone_number);
     return ctx.go('hi')
 });
@@ -161,9 +149,11 @@ bot.command('hi')
         ctx.session.memory += ctx.answer + ',';
         ctx.data.memory = ctx.session.memory;
 
+         //Calling a user intent function
+         console.log('cskncscax');
+        getUserIntent(ctx.session.memory, ctx.meta.user.id, ctx.meta.user.first_name, ctx.meta.user.last_name);
         console.log(ctx.data.memory);
         console.log(ctx.meta);
-       // addUserIntent(ctx.session.number, ctx.session.memory);
         return ctx.sendMessage('Thanks '+ ctx.meta.user.first_name+' , your selection has been captured');
         
     })
@@ -218,7 +208,7 @@ bot.command('bye').invoke(function (ctx) {
 
   bot.command('promo')
    .invoke(function(ctx) {
-       return axios.get('http://7a0873c4.ngrok.io/processor/v1/promotions')
+       return axios.get('http://ec100a85.ngrok.io/processor/v1/promotions')
        .then((response) => {
 
 
@@ -230,25 +220,6 @@ bot.command('bye').invoke(function (ctx) {
 
    })
 
-//store users number and Telegram ID in FIRESTORE
-
-// function addUserdetails(userId, name, firstName, lastName) {
-
-
-//     // Add a new user
-//     var itemsRef = ref.child("userDetails");
-//     var newItemRef = itemsRef.push();
-//     newItemRef.set({
-//         "msidn": userId,
-//         "Telegram_ID": name,
-//         "First_name": firstName,
-//         "Last_name": lastName
-//     });
-
-//     var itemId = newItemRef.key;
-//     console.log("A new TODO item with ID " + itemId + " is created.");
-//     return itemId;
-// }
 
 bot.command('check')
 .invoke(function(ctx){
@@ -289,23 +260,7 @@ bot.command('hit')
  
         });
 })
-function addUserIntent(userId, userIntent) {
 
-    
-
-
-    var itemsRef = ref.child("userIntents");
-    var newItemRef = itemsRef.push();
-    newItemRef.set({
-        "msidn": userId,
-        "user Intent": userIntent,
-        "intent Created Time": new Date().toString()
-    });
-
-    var itemId = newItemRef.key;
-    console.log("userID and intent " + itemId + " is successfully created.");
-    return itemId;
-}
 
 // posting data to the processor endpoint
 bot.command('Kat')
