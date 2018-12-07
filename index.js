@@ -13,15 +13,13 @@ admin.initializeApp({
 });
 
 const db = admin.firestore()
-
 const settings = { timestampsInSnapshots: true }
 db.settings(settings)
 
 
-
 //creating a collection
-const userDetailsCollection = 'userDetails';
-const userintentsCollection = 'userintents';
+//const userDetailsCollection = 'userDetails';
+//const userintentsCollection = 'userintents';
 
 //Add userDetails table
 
@@ -39,22 +37,9 @@ const userintentsCollection = 'userintents';
     
 //  }
     
-//Fucntion for user intent
- function getUserIntent(userIntent,telegram_id,first_name,last_name){
-   
-    let userInfor = {
 
-        intent : userIntent,
-        msidn : telegram_id,
-        first_name : first_name,
-        last_name : last_name
 
-    }
-
-    firebaseHelper.firestore.createNewDocument(db, userDetailsCollection, userInfor);
-    
- }
-
+        
 
 var bb = require('bot-brother')
 var bot = bb({
@@ -64,29 +49,38 @@ var bot = bb({
 
 })
 
-//The greetings
-bot.texts({
-    hello: {
-      world: {
-        friend: 'Hello, <%=name%>!'
-      }
-    }
-  });
+
+// //user validation 
+// bot.use('before' , (ctx) => {
+    // axios.get('http://cba26d6c.ngrok.io/processor/v1/userDetails/'+ ctx.meta.user.id)
+    // .then(response => {
+    //     if(response.data.exists ===true){
+    //         return ctx.go('yes')
+    //         console.log(response.data)
+    //     }
+    //     else{
+    //        return ctx.go('yello')
+    //     }
+    // })
+// })
 
 
-  bot.texts({
-      hello: {
-          world: {
-              friend: 'hello , <%=name%>!'
-          }
-      }
-  })
- 
-  bot.command('hey').invoke(function (ctx) {
-    ctx.data.name = ctx.meta.user.first_name;
-    ctx.sendMessage('hello.world.friend');
-    return ctx.go('hello')
-  });
+bot.command('start')
+.invoke((ctx) => {
+    axios.get('http://cba26d6c.ngrok.io/processor/v1/userDetails/'+ ctx.meta.user.id)
+    .then(response => {
+        console.log(response.data)
+        if(response.data.exists ===true){
+            
+            return ctx.go('yes')
+            
+        }
+        else{
+           return ctx.go('yello')
+        }
+    })
+
+})
 
 
 //Registration
@@ -110,12 +104,10 @@ bot.command('yello').invoke(function (ctx) {
     console.log(ctx.meta.user.phone_number);
     //getUserDetails(ctx.meta.user.phone_number, ctx.meta.user.id,ctx.meta.user.first_name,ctx.meta.user.last_name);
 
-   
+    //CHECK IF THE USER EXIST
+  
     //bot.api.sendMessage(ctx.meta.chat.id, "Yello  " +ctx.meta.user.first_name + "  may you please register by entering your number", option)
     return ctx.sendMessage("Yello  " +ctx.meta.user.first_name + "  may you please register by entering your number", option)
-
-    
-    
     
     
 //  bot.command('type')
@@ -135,8 +127,8 @@ bot.command('yello').invoke(function (ctx) {
     //display user telegram ID
     console.log(ctx.meta.user.id)    
     console.log(ctx.message.contact.phone_number);
-    return ctx.go('hi')
-});
+    return ctx.go('userInfor')
+})
 
 //memory session (storing user Intent)
 
@@ -149,17 +141,20 @@ bot.command('hi')
         ctx.session.memory += ctx.answer + ',';
         ctx.data.memory = ctx.session.memory;
 
-         //Calling a user intent function
-         console.log('cskncscax');
-        getUserIntent(ctx.session.memory, ctx.meta.user.id, ctx.meta.user.first_name, ctx.meta.user.last_name);
         console.log(ctx.data.memory);
         console.log(ctx.meta);
+        addUserIntent(ctx)
+        addUserDetails(ctx)
         return ctx.sendMessage('Thanks '+ ctx.meta.user.first_name+' , your selection has been captured');
+         //Calling a user intent function
+         //getUserIntent(ctx.session.memory, ctx.meta.user.id, ctx.meta.user.first_name, ctx.meta.user.last_name);
+        
+        
         
     })
 
         .answer(function(ctx){
-            return ctx.go('confirmation')
+            return ctx.go('intent')
         });
 
 //Confirmation
@@ -208,7 +203,7 @@ bot.command('bye').invoke(function (ctx) {
 
   bot.command('promo')
    .invoke(function(ctx) {
-       return axios.get('http://ec100a85.ngrok.io/processor/v1/promotions')
+       return axios.get('http://cba26d6c.ngrok.io/processor/v1/promotions')
        .then((response) => {
 
 
@@ -220,7 +215,7 @@ bot.command('bye').invoke(function (ctx) {
 
    })
 
-
+//Check if user exists by getting a number/telegram_id
 bot.command('check')
 .invoke(function(ctx){
     // Attach an asynchronous callback to read the data at our posts reference
@@ -234,47 +229,131 @@ bot.command('check')
         console.log("The read failed: " + errorObject.code);
 
         //Get single value inside 
-        // _.forEach(data, function(val) {
-        //     console.log(val.Telegram_ID); 
-        //   });
+        _.forEach(data, function(val) {
+            console.log(val.Telegram_ID); 
+          });
 
     });
     return ctx.sendMessage('i can read')
 })
 
 
-    // store users number and intent
-bot.command('hit')
-.invoke(function(ctx){
-    let userData = {
+// store users number and intent
+// bot.command('hit')
+// .invoke(function(ctx){
+//     let userData = {
 
-        userData: ctx.message.contact.phone_number
+//         userData: ctx.message.contact.phone_number
+//     }
+//     //Send keyboard selection action to processor
+//     axios.post('http://0da912ca.ngrok.io/processor/v1/userIntents', userData)
+//         .then(function (response) {
+//             console.log(response.data);
+ 
+//         })
+//         .catch(function (error) {
+ 
+//         });
+// })
+
+
+// // posting data to the processor endpoint
+// bot.command('Kat')
+// .invoke(function(ctx){
+    
+   
+//     axios.get('http://516d0ec3.ngrok.io/processor/v1/userDetails/ '+ ctx.meta.user.id)
+//     .then(function (response) {
+//     console.log(response.data);
+// })
+// .catch(function (error) {
+// }); 
+//     return ctx.sendMessage('hi')
+// })
+
+//Send user detaits to firestore
+// bot.command('start')
+// .invoke(function(ctx){
+//     let userInfor = {
+ 
+//         first_name : ctx.meta.user.first_name,
+//         last_name : ctx.meta.user.last_name,
+//         msidn : ctx.message.phone_number,
+//         telegram_id :  ctx.meta.user.id
+       
+
+//     }
+//     console.log('Sent to John')
+//     axios.post('http://cba26d6c.ngrok.io/processor/v1/saveUserDetails/ ', userInfor)
+//     .then(function(response){
+//         if(value.Telegram_ID == ctx.meta.user.id)
+//         {
+//             exists = true;
+//             console.log('user  exist')
+//               ctx.go('yes');
+
+
+
+//         }else{
+//             console.log('user dont exist')
+//               ctx.go('yello');
+//         }
+//         console.log(response.data)
+//     })
+//     .catch(function(error){
+//         return ctx.go('hi')
+//     })
+// })
+
+//Send user intent to firestore
+
+function addUserIntent(ctx) {
+   let userData = {
+
+       userData: ctx.session.memory,
+       msidn : ctx.message.phone_number
+
+   }
+
+
+   //posting data to the processor endpoint
+console.log('posting intents')
+   axios.post('http://cba26d6c.ngrok.io/processor/v1/saveUserIntents/', userData)
+       .then(function (response) {
+           console.log(response.data);
+
+       })
+       .catch(function (error) {
+
+
+
+       });
+}
+
+//Creating user deatils to firestore
+function addUserDetails(ctx) {
+    let userInfor = {
+ 
+        first_name : ctx.meta.user.first_name,
+        last_name : ctx.meta.user.last_name,
+        msidn : ctx.message.phone_number,
+        telegram_id :  ctx.meta.user.id
+       
     }
-    //Send keyboard selection action to processor
-    axios.post('http://0da912ca.ngrok.io/processor/v1/userIntents', userData)
+    //posting data to the processor endpoint
+    console.log('posting user deatils')
+    axios.post('http://cba26d6c.ngrok.io/processor/v1/saveUserIntents/', userInfor)
         .then(function (response) {
             console.log(response.data);
  
         })
         .catch(function (error) {
- 
+
+            ctx.sendMessage('error code ')
+
+            return ctx.go('yello');
         });
-})
-
-
-// posting data to the processor endpoint
-bot.command('Kat')
-.invoke(function(ctx){
-     
-    console.log('Sent to Kat')
-    axios.get('http://516d0ec3.ngrok.io/processor/v1/userDetails/ '+ ctx.meta.user.id)
-    .then(function (response) {
-    console.log(response.data);
-
-})
-.catch(function (error) {
-}); 
-    return ctx.sendMessage('hi')
-})
-
-//Get menu from processor 
+ }
+    
+    
+  
